@@ -1,6 +1,9 @@
 from fastapi import APIRouter
-from .example_router import example_router
+from .chat import chat_router
+from .home import home_router
+
 
 router = APIRouter()
 
-router.include_router(example_router)
+router.include_router(home_router)
+router.include_router(chat_router)
