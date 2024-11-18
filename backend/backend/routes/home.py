@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import HTTPException, APIRouter
 from typing import List
 from .chat import start_convo
@@ -8,11 +9,30 @@ home_router = APIRouter(
     tags=["home"],
 )
 
-class Vacation(BaseModel):
-    start_location: str
-    end_location: str
-    start_date: str
-    end_date: str
+#for inputs
+class InspirationTrip(BaseModel):
+    origin: str
+    destination: str
+
+class DetailedTrip(BaseModel):
+    origin: str
+    destination: str
+    start_date: datetime
+    end_date: datetime
+
+#for outputs
+class FlightSegment(BaseModel):
+    airline: str
+    departure_airport: str
+    arrival_airport: str
+    flight_time: int
+    departure_time: datetime
+    arrival_time: datetime
+
+class Itinerary(BaseModel):
+    price: int
+    legs: List[FlightSegment]
+    score: int
 
 def parse_trip_info(trip_info: List[Vacation]):
     trip_joined = "\n".join([f"{trip.start_location} to {trip.end_location} from {trip.start_date} to {trip.end_date}" for trip in trip_info])
