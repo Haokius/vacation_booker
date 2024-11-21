@@ -1,6 +1,9 @@
 from datetime import datetime
+import json
 from typing import List
+import os
 
+from dotenv import load_dotenv
 from fastapi import HTTPException, APIRouter
 from pydantic import BaseModel
 import requests
@@ -10,6 +13,8 @@ home_router = APIRouter(
     tags=["home"],
 )
 
+load_dotenv()
+
 #for inputs
 class InspirationTrip(BaseModel):
     origin: str
@@ -18,8 +23,8 @@ class InspirationTrip(BaseModel):
 class DetailedTrip(BaseModel):
     origin: str
     destination: str
-    start_date: datetime
-    end_date: datetime
+    start_date: str
+    end_date: str
 
 #for outputs
 class FlightSegment(BaseModel):
@@ -29,14 +34,16 @@ class FlightSegment(BaseModel):
     flight_time: int
     departure_time: datetime
     arrival_time: datetime
+    flight_number: str
+    stop_count: int
 
 class Itinerary(BaseModel):
-    price: int
+    price: float
     legs: List[FlightSegment]
-    score: int
+    score: float
 
 class InspirationProposal(BaseModel):
-    price: int
+    price: float
     departure_date: datetime
     arrival_date: datetime
 
@@ -45,17 +52,15 @@ class InspirationBucket(BaseModel):
     proposals: List[InspirationProposal]
 
 
-@home_router.get("/get_inspiration")
+@home_router.post("/get_inspiration")
 async def get_inspiration(inspiration_trip: InspirationTrip) -> List[InspirationBucket]:
-    API_KEY_DO_NOT_COMMIT = "056a930a84mshf1c29284b5dc849p1c5dabjsn3962e9ea1b58"
-
     origin = inspiration_trip.origin
     destination = inspiration_trip.destination
 
     url = f"https://sky-scanner3.p.rapidapi.com/flights/search-roundtrip?fromEntityId={origin}&toEntityId={destination}"
     r = requests.get(url, headers={
         "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
-        "x-rapidapi-key": API_KEY_DO_NOT_COMMIT
+        "x-rapidapi-key": os.getenv("API_KEY1")
     })
 
     if r.status_code != 200:
@@ -63,7 +68,9 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
 
     response_json = r.json()
 
-    print(r.json())
+    #response_json = None
+    #with open("sample_inspiration.json", "r") as f:
+    #    response_json = json.loads(f.read())
 
     buckets = response_json["data"]["flightQuotes"]["buckets"]
     results = response_json["data"]["flightQuotes"]["results"]
@@ -92,31 +99,61 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
 
     return output_buckets
 
-@home_router.get("/get_detailed_trip")
+@home_router.post("/get_detailed_trip")
 async def get_detailed_trip(detailed_trip: DetailedTrip):
+    origin = detailed_trip.origin
+    destination = detailed_trip.destination
+    start_date = detailed_trip.start_date
+    end_date = detailed_trip.end_date
+
+    url = f"https://sky-scanner3.p.rapidapi.com/flights/search-roundtrip?fromEntityId={origin}&toEntityId={destination}&departDate={start_date}&returnDate={end_date}"
+    r = requests.get(url, headers={
+         "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+         "x-rapidapi-key": os.getenv("API_KEY1")
+     })
     
-    pass
+    if r.status_code != 200:
+        print("something went wrong")
 
+    response_json = r.json()
 
+    print(response_json)
 
-# def parse_trip_info(trip_info: List[Vacation]):
-#     trip_joined = "\n".join([f"{trip.start_location} to {trip.end_location} from {trip.start_date} to {trip.end_date}" for trip in trip_info])
-#     return trip_joined
+    itineraries = response_json["data"]["itineraries"]
+    output_itineraries = []
 
-# @home_router.post("/")
-# async def search(user_id: str, vacation_plan: List[Vacation]):
-#     response = []
-#     try:
-#         for vacation in vacation_plan:
-#             # NOTE: query the APIs
-#             response.append(vacation.model_dump())
+    for itinerary in itineraries:
+        price = itinerary["price"]["raw"]
+        score = itinerary["score"]
+        legs = itinerary["legs"]
 
-#         # Convert vacation_plan to trip_info format
-#         trip_info = parse_trip_info(vacation_plan)
-        
-#         # Call start_convo to initiate a conversation with the parsed trip information
-#         await start_convo(user_id=user_id, trip_info=trip_info)
+        flight_segments = []
 
-#         return response
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        for leg in legs:
+            departure_airport = leg["origin"]["name"]
+            departure_airport_code = leg["origin"]["displayCode"]
+            arrival_airport = leg["destination"]["name"]
+            arrival_airport_code = leg["destination"]["displayCode"]
+
+            departure_time = leg["departure"]
+            arrival_time = leg["arrival"]
+
+            segments = leg["segments"]
+            for segment in segments:
+                flight_time = segment["durationInMinutes"]
+
+                airline_name = segment["operatingCarrier"]["name"]
+                airline_id = segment["operatingCarrier"]["alternateId"]
+                flight_number = segment["flightNumber"]
+                flight_number_full = airline_id + flight_number
+
+            stop_count = leg["stopCount"]
+
+            flight_segments.append(FlightSegment(airline=airline_name, departure_airport=departure_airport,
+                                                    arrival_airport=arrival_airport, flight_time=flight_time,
+                                                    departure_time=departure_time, arrival_time=arrival_time,
+                                                    flight_number=flight_number_full, stop_count=stop_count))
+                
+        output_itineraries.append(Itinerary(price=price, legs=flight_segments, score=score))
+    
+    return output_itineraries
