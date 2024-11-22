@@ -8,6 +8,8 @@ from fastapi import HTTPException, APIRouter
 from pydantic import BaseModel
 import requests
 
+from .chat import start_inspiration_trip_convo, start_detailed_trip_convo
+
 home_router = APIRouter(
     prefix="/home",
     tags=["home"],
@@ -97,10 +99,12 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
         
         output_buckets.append(InspirationBucket(label=label, proposals=proposals))
 
+    start_inspiration_trip_convo(inspiration_trip, output_buckets)
+
     return output_buckets
 
 @home_router.post("/get_detailed_trip")
-async def get_detailed_trip(detailed_trip: DetailedTrip):
+async def get_detailed_trip(detailed_trip: DetailedTrip) -> List[Itinerary]:
     origin = detailed_trip.origin
     destination = detailed_trip.destination
     start_date = detailed_trip.start_date
@@ -155,5 +159,7 @@ async def get_detailed_trip(detailed_trip: DetailedTrip):
                                                     flight_number=flight_number_full, stop_count=stop_count))
                 
         output_itineraries.append(Itinerary(price=price, legs=flight_segments, score=score))
+    
+    start_detailed_trip_convo(detailed_trip, output_itineraries)
     
     return output_itineraries
