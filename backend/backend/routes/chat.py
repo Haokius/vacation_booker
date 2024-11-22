@@ -30,8 +30,8 @@ class DetailedTrip(BaseModel):
 
 class InspirationProposal(BaseModel):
     price: float
-    departure_date: datetime
-    arrival_date: datetime
+    departure_date: str
+    arrival_date: str
 
 class InspirationBucket(BaseModel):
     label: str
@@ -42,8 +42,8 @@ class FlightSegment(BaseModel):
     departure_airport: str
     arrival_airport: str
     flight_time: int
-    departure_time: datetime
-    arrival_time: datetime
+    departure_time: str
+    arrival_time: str
     flight_number: str
     stop_count: int
 
@@ -62,6 +62,7 @@ async def get_chat():
 @chat_router.post("/start_inspiration_trip_convo")
 async def start_inspiration_trip_convo(inspiration_trip : InspirationTrip, output_buckets : List[InspirationBucket]):
     
+    print("we got here")
     trip_info = json.dumps([bucket.model_dump() for bucket in output_buckets])
     
     initial_prompt = (
@@ -105,7 +106,7 @@ async def chat_with_gpt4(message: str):
 
     return {"response": gpt_response}
 
-@chat_router.delete("/end_convo/{user_id}")
-async def end_conversation(user_id: str):
+@chat_router.delete("/end_convo")
+async def end_conversation():
     conversation_history.clear()
     return {"message": "Conversation ended successfully."}

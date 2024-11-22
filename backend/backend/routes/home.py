@@ -34,8 +34,8 @@ class FlightSegment(BaseModel):
     departure_airport: str
     arrival_airport: str
     flight_time: int
-    departure_time: datetime
-    arrival_time: datetime
+    departure_time: str
+    arrival_time: str
     flight_number: str
     stop_count: int
 
@@ -46,8 +46,8 @@ class Itinerary(BaseModel):
 
 class InspirationProposal(BaseModel):
     price: float
-    departure_date: datetime
-    arrival_date: datetime
+    departure_date: str
+    arrival_date: str
 
 class InspirationBucket(BaseModel):
     label: str
@@ -90,16 +90,16 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
                     price = result_content["rawPrice"]
 
                     outbound_date_str = result_content["outboundLeg"]["localDepartureDate"]
-                    outbound_date = datetime.strptime(outbound_date_str, "%Y-%m-%d")
+                    outbound_date = str(datetime.strptime(outbound_date_str, "%Y-%m-%d"))
 
                     inbound_date_str = result_content["inboundLeg"]["localDepartureDate"]
-                    inbound_date = datetime.strptime(inbound_date_str, "%Y-%m-%d")
+                    inbound_date = str(datetime.strptime(inbound_date_str, "%Y-%m-%d"))
 
                     proposals.append(InspirationProposal(price=price, departure_date=outbound_date, arrival_date=inbound_date))
         
         output_buckets.append(InspirationBucket(label=label, proposals=proposals))
 
-    start_inspiration_trip_convo(inspiration_trip, output_buckets)
+    await start_inspiration_trip_convo(inspiration_trip, output_buckets)
 
     return output_buckets
 
@@ -139,8 +139,8 @@ async def get_detailed_trip(detailed_trip: DetailedTrip) -> List[Itinerary]:
             arrival_airport = leg["destination"]["name"]
             arrival_airport_code = leg["destination"]["displayCode"]
 
-            departure_time = leg["departure"]
-            arrival_time = leg["arrival"]
+            departure_time = str(leg["departure"])
+            arrival_time = str(leg["arrival"])
 
             segments = leg["segments"]
             for segment in segments:
@@ -160,6 +160,6 @@ async def get_detailed_trip(detailed_trip: DetailedTrip) -> List[Itinerary]:
                 
         output_itineraries.append(Itinerary(price=price, legs=flight_segments, score=score))
     
-    start_detailed_trip_convo(detailed_trip, output_itineraries)
+    await start_detailed_trip_convo(detailed_trip, output_itineraries)
     
     return output_itineraries
