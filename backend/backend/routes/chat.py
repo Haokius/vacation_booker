@@ -55,6 +55,8 @@ class Itinerary(BaseModel):
 # list of conversation history
 conversation_history = []
 
+
+
 @chat_router.get("/")
 async def get_chat():
     return {"conversation": conversation_history}
@@ -98,7 +100,7 @@ async def chat_with_gpt4(message: str):
             model="gpt-4o-mini",
             messages=conversation_history
         )
-        gpt_response = response.choices[0].message['content']
+        gpt_response = response.choices[0].message.content
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"OpenAI API error: {str(e)}")
 

@@ -160,6 +160,8 @@ async def get_detailed_trip(detailed_trip: DetailedTrip) -> List[Itinerary]:
                 
         output_itineraries.append(Itinerary(price=price, legs=flight_segments, score=score))
     
-    await start_detailed_trip_convo(detailed_trip, output_itineraries)
+    sorted_output_itineraries = sorted(output_itineraries, key=lambda x: x.price)[:5]
+    
+    await start_detailed_trip_convo(detailed_trip, sorted_output_itineraries)
     
     return output_itineraries
