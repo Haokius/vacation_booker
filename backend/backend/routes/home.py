@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 from typing import List
 import os
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from fastapi import HTTPException, APIRouter
@@ -69,10 +70,6 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
         print("something went wrong")
 
     response_json = r.json()
-
-    #response_json = None
-    #with open("sample_inspiration.json", "r") as f:
-    #    response_json = json.loads(f.read())
 
     buckets = response_json["data"]["flightQuotes"]["buckets"]
     results = response_json["data"]["flightQuotes"]["results"]
@@ -165,3 +162,57 @@ async def get_detailed_trip(detailed_trip: DetailedTrip) -> List[Itinerary]:
     await start_detailed_trip_convo(detailed_trip, sorted_output_itineraries)
     
     return output_itineraries
+
+#for hotels inputs
+class HotelIds(BaseModel):
+    city: str
+
+class HotelOptions(BaseModel):
+    district_id: int
+    check_in_date: str
+    check_out_date: str
+
+#for hotels outputs
+class HotelDistrict(BaseModel):
+    district: str
+    district_id: int
+
+class HotelList(BaseModel):
+    hotel_name: str
+    distance: str
+    hotel_price: str
+
+class HotelDetails(BaseModel):
+    hotel_name: str
+    hotel_description: str
+    check_in_time: str
+    check_out_time: str
+    location: str
+    rating: int
+
+@home_router.post("/get_hotel_district")
+async def get_hotel_district(hotel_district: HotelIds) -> List[HotelDistrict]:
+    city = hotel_district.city
+    city_url = quote(city)
+    
+    url = f"https://sky-scanner3.p.rapidapi.com/hotels/auto-complete?query={city_url}"
+    r = requests.get(url, headers={
+        "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+        "x-rapidapi-key": os.getenv("API_KEY1")
+    })
+
+    if r.status_code != 200:
+        print("something went wrong")
+
+    response_json = r.json()
+
+    data_list = response_json["data"]
+
+    district_options = []
+    for data in data_list: 
+        district = data["entityName"]
+        district_id = data["entityId"]
+        
+        district_options.append(HotelDistrict(district=district, district_id=district_id))
+
+    return district_options
