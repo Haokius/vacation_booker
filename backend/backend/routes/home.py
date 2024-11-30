@@ -179,6 +179,7 @@ class HotelDistrict(BaseModel):
 
 class HotelList(BaseModel):
     hotel_name: str
+    hotel_id: str
     distance: str
     hotel_price: str
 
@@ -216,3 +217,72 @@ async def get_hotel_district(hotel_district: HotelIds) -> List[HotelDistrict]:
         district_options.append(HotelDistrict(district=district, district_id=district_id))
 
     return district_options
+
+@home_router.post("/get_hotel_list")
+async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelList]:
+    district_id = hotel_options.district_id
+    check_in_date = hotel_options.check_in_date
+    check_out_date = hotel_options.check_out_date
+
+    url = f"https://sky-scanner3.p.rapidapi.com/hotels/search?entityId={district_id}&checkin={check_in_date}&checkout={check_out_date}"
+    
+    r = requests.get(url, headers={
+        "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+        "x-rapidapi-key": os.getenv("API_KEY1")
+    })
+
+    if r.status_code != 200:
+        print("something went wrong")
+
+    response_json = r.json()
+
+    completionPercentage = response_json["data"]["status"]["completionPercentage"]
+
+    while completionPercentage != 100:
+        r = requests.get(url, headers={
+        "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+        "x-rapidapi-key": os.getenv("API_KEY1")
+        })
+
+    hotel_options = response_json["data"]["results"]["hotelCards"]
+    
+    output_hotels = []
+
+    for hotel_option in hotel_options:
+        name = hotel_option["name"]
+        id = hotel_option["id"]
+        price = hotel_option["cheapestPrice"]
+        distance = hotel_option["distance"]
+
+        output_hotels.append(HotelList(hotel_name=name, hotel_id=id, distance=distance, hotel_price=price))
+   
+    return output_hotels
+
+@home_router.post("/get_hotel_details")
+async def get_hotel_details(hotel_list: HotelList) -> HotelDetails:
+    hotel_id = hotel_list.hotel_id
+    
+    url = f"https://sky-scanner3.p.rapidapi.com/hotels/detail?id={hotel_id}"
+    r = requests.get(url, headers={
+        "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+        "x-rapidapi-key": os.getenv("API_KEY1")
+    })
+
+    if r.status_code != 200:
+        print("something went wrong")
+
+    response_json = r.json()
+
+    data = response_json["data"]
+    hotel_name = data["general"]["name"]
+    hotel_description = data["goodToKnow"]["description"]["content"]
+    check_in_time = data["goodToKnow"]["checkinTime"]["title"] + data["goodToKnow"]["checkinTime"]["time"]
+    check_out_time = data["goodToKnow"]["checkoutTime"]["title"] + data["goodToKnow"]["checkoutTime"]["time"]
+    location = data["location"]["address"]
+    rating = data["reviews"]["rating"]
+
+    output_hotel_details = HotelDetails(hotel_name=hotel_name, hotel_description=hotel_description,
+                                        check_in_time=check_in_time, check_out_time=check_out_time,
+                                        location=location, rating=rating)
+    
+    return output_hotel_details
