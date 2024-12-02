@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+from time import sleep
 from typing import List
 import os
 from urllib.parse import quote
@@ -177,7 +178,7 @@ class HotelDistrict(BaseModel):
     district: str
     district_id: int
 
-class HotelList(BaseModel):
+class HotelSummary(BaseModel):
     hotel_name: str
     hotel_id: str
     distance: str
@@ -219,7 +220,7 @@ async def get_hotel_district(hotel_district: HotelIds) -> List[HotelDistrict]:
     return district_options
 
 @home_router.post("/get_hotel_list")
-async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelList]:
+async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelSummary]:
     district_id = hotel_options.district_id
     check_in_date = hotel_options.check_in_date
     check_out_date = hotel_options.check_out_date
@@ -233,6 +234,7 @@ async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelList]:
 
     if r.status_code != 200:
         print("something went wrong")
+        print(r.json())
 
     response_json = r.json()
 
@@ -240,9 +242,12 @@ async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelList]:
 
     while completionPercentage != 100:
         r = requests.get(url, headers={
-        "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
-        "x-rapidapi-key": os.getenv("API_KEY1")
+            "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
+            "x-rapidapi-key": os.getenv("API_KEY1")
         })
+        response_json = r.json()
+        completionPercentage = response_json["data"]["status"]["completionPercentage"]
+        sleep(0.5)
 
     hotel_options = response_json["data"]["results"]["hotelCards"]
     
@@ -254,13 +259,12 @@ async def get_hotel_list(hotel_options: HotelOptions) -> List[HotelList]:
         price = hotel_option["cheapestPrice"]
         distance = hotel_option["distance"]
 
-        output_hotels.append(HotelList(hotel_name=name, hotel_id=id, distance=distance, hotel_price=price))
+        output_hotels.append(HotelSummary(hotel_name=name, hotel_id=id, distance=distance, hotel_price=price))
    
     return output_hotels
 
 @home_router.post("/get_hotel_details")
-async def get_hotel_details(hotel_list: HotelList) -> HotelDetails:
-    hotel_id = hotel_list.hotel_id
+async def get_hotel_details(hotel_id: str) -> HotelDetails:
     
     url = f"https://sky-scanner3.p.rapidapi.com/hotels/detail?id={hotel_id}"
     r = requests.get(url, headers={
@@ -276,8 +280,8 @@ async def get_hotel_details(hotel_list: HotelList) -> HotelDetails:
     data = response_json["data"]
     hotel_name = data["general"]["name"]
     hotel_description = data["goodToKnow"]["description"]["content"]
-    check_in_time = data["goodToKnow"]["checkinTime"]["title"] + data["goodToKnow"]["checkinTime"]["time"]
-    check_out_time = data["goodToKnow"]["checkoutTime"]["title"] + data["goodToKnow"]["checkoutTime"]["time"]
+    check_in_time = data["goodToKnow"]["checkinTime"]["title"] + " " + data["goodToKnow"]["checkinTime"]["time"]
+    check_out_time = data["goodToKnow"]["checkoutTime"]["title"] + " " + data["goodToKnow"]["checkoutTime"]["time"]
     location = data["location"]["address"]
     rating = data["reviews"]["rating"]
 
