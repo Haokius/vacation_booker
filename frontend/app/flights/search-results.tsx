@@ -9,19 +9,31 @@
     }) {
     const { type, start, end, startDate, endDate } = searchParams
     const endpoint = type === 'inspiration' ? '/api/get_inspiration' : '/api/get_detailed_trip'
-    const response = await fetch(`http://localhost:8000/${endpoint}`, {
+    
+    try {
+        const response = await fetch(`http://localhost:8000/${endpoint}`, {
         method: 'POST',
         headers: {
-        'Content-Type': 'application/json',
+            'Content-Type': 'application/json',
         },
         body: JSON.stringify({ start, end, startDate, endDate }),
-    })
+        })
 
-    if (!response.ok) {
-        throw new Error('Failed to fetch search results')
+        if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        
+        if (!data || !data.results) {
+        throw new Error('Invalid response format')
+        }
+
+        return data.results
+    } catch (error) {
+        console.error('Error fetching search results:', error)
+        throw error
     }
-
-    return response.json()
     }
 
     export default async function SearchResults({
@@ -37,22 +49,34 @@
     startDate?: string
     endDate?: string
     }) {
-    const results = await getSearchResults({ type, start, end, startDate, endDate })
+    try {
+        const results = await getSearchResults({ type, start, end, startDate, endDate })
 
-    return (
+        if (results.length === 0) {
+        return <p className="text-center mt-8">No results found. Please try a different search.</p>
+        }
+
+        return (
         <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {results.map((result: any, index: number) => (
+            {results.map((result: any, index: number) => (
             <Card key={index}>
-            <CardHeader>
+                <CardHeader>
                 <CardTitle>{result.title}</CardTitle>
-            </CardHeader>
-            <CardContent>
+                </CardHeader>
+                <CardContent>
                 <p>{result.description}</p>
                 {result.price && <p className="font-bold mt-2">Price: ${result.price}</p>}
-            </CardContent>
+                </CardContent>
             </Card>
-        ))}
+            ))}
         </div>
-    )
+        )
+    } catch (error) {
+        return (
+        <div className="mt-8 text-center text-red-600">
+            <p>An error occurred while fetching search results. Please try again later.</p>
+        </div>
+        )
+    }
     }
 
