@@ -19,7 +19,7 @@ export default function Home() {
     const handleInspirationSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/home/get_inspiration', {
+            const response = await axios.post('http://localhost:8000/home/get_inspiration', {
                 origin: inspirationForm.start,
                 destination: inspirationForm.end
             });
