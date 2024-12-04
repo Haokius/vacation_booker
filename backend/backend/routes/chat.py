@@ -90,10 +90,13 @@ async def start_detailed_trip_convo(detailed_trip : DetailedTrip, output_itinera
 
     return {"message": "Conversation started successfully."}
 
-@chat_router.post("/conversation")
-async def chat_with_gpt4(message: str):
+class Message(BaseModel):
+    message: str
 
-    conversation_history.append({"role": "user", "content": message})
+@chat_router.post("/conversation")
+async def chat_with_gpt4(message: Message):
+
+    conversation_history.append({"role": "user", "content": message.message})
 
     try:
         response = client.chat.completions.create(

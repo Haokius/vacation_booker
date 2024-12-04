@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React from 'react';
 import { ChatbotPopup } from '@/components/ChatbotPopup';
+import { ScatterPlot } from '@/components/ScatterPlot';
+import { HotelScatterPlot } from '@/components/HotelsScatterPlot';
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState('inspiration');
@@ -254,7 +256,7 @@ export default function Home() {
             </Tabs>
 
             <div className="fixed bottom-4 right-4 z-50">
-                <ChatbotPopup />
+                {(detailedTripResults || inspirationResults) && (<ChatbotPopup />)}
             </div>
         </main>
     );
@@ -325,6 +327,17 @@ interface DetailedTripDisplayProps {
 
 // Detailed Trip Display Component
 function DetailedTripDisplay({ detailedTripResults }: DetailedTripDisplayProps) {
+
+    if (!detailedTripResults) {
+        return null;
+    }
+    const plotData = detailedTripResults.map((itinerary: any, index: number) => ({
+        x: itinerary.price,
+        y: itinerary.score,
+        z: index + 1,
+    }));
+    console.log(plotData);
+
     return (
         <div className="container mx-auto py-8 px-4">
             <h2 className="text-3xl font-bold text-center mb-6">Detailed Trip Results</h2>
@@ -349,6 +362,14 @@ function DetailedTripDisplay({ detailedTripResults }: DetailedTripDisplayProps) 
                     <p className="text-right text-sm text-gray-500">Score: {itinerary.score.toFixed(3)}</p>
                 </div>
             ))}
+            {detailedTripResults && (
+            <>
+                <div className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4">Price to Score Comparison</h3>
+                    <ScatterPlot data={plotData} />
+                </div>
+            </>
+            )}
         </div>
     );
 }
@@ -411,6 +432,16 @@ function HotelSummaryDisplay({ hotelSummaryResults, onSelectHotelSummary }: Hote
                     </div>
                 </div>
             ))}
+            {hotelSummaryResults && (
+                <div className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4">Price to Distance Comparison</h3>
+                    <HotelScatterPlot data={hotelSummaryResults.map((hotel, index) => ({
+                        x: parseFloat(hotel.hotel_price.replace('$', '')),
+                        y: parseFloat(hotel.distance),
+                        z: index + 1,
+                    }))} />
+                </div>
+            )}
         </div>
     );
 }
