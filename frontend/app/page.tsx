@@ -19,6 +19,7 @@ export default function Home() {
     const [detailedTripResults, setDetailedTripResults] = useState(null);
     const [hotelDistrictResults, setHotelDistrictResults] = useState(null);
     const [hotelSummaryResults, setHotelSummaryResults] = useState(null);
+    const [hotelDetailsResults, setHotelDetailsResults] = useState(null);
 
     // Handle Inspiration Trip Submit
     const handleInspirationSubmit = async (e: React.FormEvent) => {
@@ -57,6 +58,8 @@ export default function Home() {
                 city: hotelForm.city,
             });
             setHotelDistrictResults(response.data);
+            setHotelDetailsResults(null);
+            setHotelSummaryResults(null);
         } catch (error) {
             console.error("Error fetching Hotel district data:", error);
         }
@@ -73,6 +76,19 @@ export default function Home() {
             setHotelSummaryResults(response.data);
         } catch (error) {
             console.error("Error fetching Hotel list data:", error);
+        }
+    };
+
+    const getHotelDetails = async (hotelSummary: HotelSummary) => {
+        console.log(`getting hotel details for hotel ${hotelSummary.hotel_id}`);
+        try {
+            const response = await axios.post(
+                `http://localhost:8000/home/get_hotel_details?hotel_id=${hotelSummary.hotel_id}`,
+                {}
+            );
+            setHotelDetailsResults({details: response.data, summary: hotelSummary});
+        } catch (error) {
+            console.error("Error fetching hotel details data:", error);
         }
     };
 
@@ -215,9 +231,23 @@ export default function Home() {
                     {hotelSummaryResults && (
                         <HotelSummaryDisplay
                             hotelSummaryResults={hotelSummaryResults}
-                            onSelectHotelSummary={(hotelId: string) => {
-                                console.log(`Hotel ${hotelId} selected!`)
+                            onSelectHotelSummary={(hotelSummary: HotelSummary) => {
+                                console.log(`Hotel ${hotelSummary.hotel_id} selected!`)
+                                getHotelDetails(hotelSummary);
+                                setHotelSummaryResults(null);
                             }}
+                        />
+                    )}
+                    {hotelDetailsResults && (
+                        <HotelDetailsDisplay
+                            hotel_name={hotelDetailsResults.summary.hotel_name}
+                            distance={hotelDetailsResults.summary.distance}
+                            hotel_price={hotelDetailsResults.summary.hotel_price}
+                            hotel_description={hotelDetailsResults.details.hotel_description}
+                            check_in_time={hotelDetailsResults.details.check_in_time}
+                            check_out_time={hotelDetailsResults.details.check_out_time}
+                            location={hotelDetailsResults.details.location}
+                            rating={hotelDetailsResults.details.rating}
                         />
                     )}
                 </TabsContent>
@@ -360,7 +390,7 @@ type HotelSummary = {
 
 interface HotelSummaryDisplayProps {
     hotelSummaryResults: HotelSummary[];
-    onSelectHotelSummary: (hotelId: string) => void;
+    onSelectHotelSummary: (hotelSummary: HotelSummary) => void;
 }
 
 // Hotel Summaries Display Component
@@ -372,7 +402,7 @@ function HotelSummaryDisplay({ hotelSummaryResults, onSelectHotelSummary }: Hote
                 <div
                     key={index}
                     className="mb-8 p-4 border rounded-lg shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => onSelectHotelSummary(hotelSummary.hotel_id)}
+                    onClick={() => onSelectHotelSummary(hotelSummary)}
                 >
                     <h3 className="text-xl font-semibold">{hotelSummary.hotel_name}</h3>
                     <div className="mb-2">
@@ -381,6 +411,35 @@ function HotelSummaryDisplay({ hotelSummaryResults, onSelectHotelSummary }: Hote
                     </div>
                 </div>
             ))}
+        </div>
+    );
+}
+
+type HotelDetails = {
+    hotel_name: string;
+    distance: string;
+    hotel_price: string;
+    hotel_description: string;
+    check_in_time: string;
+    check_out_time: string;
+    location: string;
+    rating: number;
+}
+
+// Hotel Details Display Component
+function HotelDetailsDisplay(hotelDetails: HotelDetails) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">{hotelDetails.hotel_name}</h2>
+            <div className="mb-2">
+                <p className="font-medium">Description: <span className="font-normal">{hotelDetails.hotel_description}</span></p>
+                <p className="font-medium">Price: <span className="font-normal">{hotelDetails.hotel_price}</span></p>
+                <p className="font-medium">Check-In Time: <span className="font-normal">{hotelDetails.check_in_time}</span></p>
+                <p className="font-medium">Check-Out Time: <span className="font-normal">{hotelDetails.check_out_time}</span></p>
+                <p className="font-medium">Location: <span className="font-normal">{hotelDetails.location}</span></p>
+                <p className="font-medium">Distance: <span className="font-normal">{hotelDetails.distance}</span></p>
+                <p className="font-medium">Rating: <span className="font-normal">{hotelDetails.rating}</span></p>
+            </div>
         </div>
     );
 }
