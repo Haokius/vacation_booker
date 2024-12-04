@@ -7,6 +7,8 @@
     import { ScrollArea } from "@/components/ui/scroll-area"
     import { MessageCircle, X } from 'lucide-react'
 
+    import axios from 'axios'
+
     interface Message {
     text: string
     isUser: boolean
@@ -19,12 +21,14 @@
     ])
     const [input, setInput] = useState('')
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (input.trim()) {
         setMessages([...messages, { text: input, isUser: true }])
-        // Here you would typically send the message to your chatbot API
-        // and then add the response to the messages
-        setMessages(prev => [...prev, { text: "I'm a demo chatbot. In a real application, I would provide helpful responses about flights!", isUser: false }])
+        
+        const response = await axios.post('http://localhost:8000/chat/conversation', { message: input })
+        const data = response.data.response
+
+        setMessages(prev => [...prev, { text: data, isUser: false }])
         setInput('')
         }
     }
