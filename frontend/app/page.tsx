@@ -113,7 +113,7 @@ export default function Home() {
                             <Label htmlFor="start-date">Start Date</Label>
                             <Input
                                 id="start-date"
-                                type="date"
+                                type="text"
                                 value={specificForm.startDate}
                                 onChange={(e) => setSpecificForm({ ...specificForm, startDate: e.target.value })}
                                 required
@@ -123,7 +123,7 @@ export default function Home() {
                             <Label htmlFor="end-date">End Date</Label>
                             <Input
                                 id="end-date"
-                                type="date"
+                                type="text"
                                 value={specificForm.endDate}
                                 onChange={(e) => setSpecificForm({ ...specificForm, endDate: e.target.value })}
                                 required
