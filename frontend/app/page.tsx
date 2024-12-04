@@ -1,185 +1,476 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Slider } from "@/components/ui/slider"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ChartContainer } from "@/components/ui/chart"
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { Star } from 'lucide-react'
+import { useState } from 'react';
+import axios from 'axios';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React from 'react';
+import { ChatbotPopup } from '@/components/ChatbotPopup';
+import { ScatterPlot } from '@/components/ScatterPlot';
+import { HotelScatterPlot } from '@/components/HotelsScatterPlot';
 
-// Mock data for hotels
-const hotelsData = [
-  { id: 1, name: "Sunset Resort", price: 150, rating: 4, image: "/placeholder.svg" },
-  { id: 2, name: "Ocean View Hotel", price: 200, rating: 5, image: "/placeholder.svg" },
-  { id: 3, name: "Mountain Retreat", price: 120, rating: 3, image: "/placeholder.svg" },
-  { id: 4, name: "City Center Inn", price: 180, rating: 4, image: "/placeholder.svg" },
-  { id: 5, name: "Lakeside Lodge", price: 160, rating: 4, image: "/placeholder.svg" },
-  { id: 6, name: "Luxury Palace", price: 300, rating: 5, image: "/placeholder.svg" },
-  { id: 7, name: "Cozy Cabin", price: 100, rating: 3, image: "/placeholder.svg" },
-  { id: 8, name: "Beachfront Bungalow", price: 250, rating: 5, image: "/placeholder.svg" },
-]
+export default function Home() {
+    const [activeTab, setActiveTab] = useState('inspiration');
+    const [inspirationForm, setInspirationForm] = useState({ start: '', end: '' });
+    const [specificForm, setSpecificForm] = useState({ start: '', end: '', startDate: '', endDate: '' });
+    const [hotelForm, setHotelForm] = useState({ city: '', checkInDate: '', checkOutDate: ''});
 
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const hotel = payload[0].payload;
+    const [inspirationResults, setInspirationResults] = useState(null);
+    const [detailedTripResults, setDetailedTripResults] = useState(null);
+    const [hotelDistrictResults, setHotelDistrictResults] = useState(null);
+    const [hotelSummaryResults, setHotelSummaryResults] = useState(null);
+    const [hotelDetailsResults, setHotelDetailsResults] = useState(null);
+
+    // Handle Inspiration Trip Submit
+    const handleInspirationSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('http://localhost:8000/home/get_inspiration', {
+                origin: inspirationForm.start,
+                destination: inspirationForm.end
+            });
+            setInspirationResults(response.data);
+        } catch (error) {
+            console.error("Error fetching inspiration trip data:", error);
+        }
+    };
+
+    // Handle Detailed Trip Submit
+    const handleSpecificSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('http://localhost:8000/home/get_detailed_trip', {
+                origin: specificForm.start,
+                destination: specificForm.end,
+                start_date: specificForm.startDate,
+                end_date: specificForm.endDate
+            });
+            setDetailedTripResults(response.data);
+        } catch (error) {
+            console.error("Error fetching detailed trip data:", error);
+        }
+    };
+
+    const handleHotelDistricSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            const response = await axios.post('http://localhost:8000/home/get_hotel_district', {
+                city: hotelForm.city,
+            });
+            setHotelDistrictResults(response.data);
+            setHotelDetailsResults(null);
+            setHotelSummaryResults(null);
+        } catch (error) {
+            console.error("Error fetching Hotel district data:", error);
+        }
+    };
+
+    const getHotelListFromDistrict = async (districtId: number, checkInDate: string, checkOutDate: string) => {
+        console.log(`getting hotel list from district ${districtId} with check-in ${checkInDate} and check-out ${checkOutDate}`);
+        try {
+            const response = await axios.post('http://localhost:8000/home/get_hotel_list', {
+                district_id: districtId,
+                check_in_date: checkInDate,
+                check_out_date: checkOutDate
+            });
+            setHotelSummaryResults(response.data);
+        } catch (error) {
+            console.error("Error fetching Hotel list data:", error);
+        }
+    };
+
+    const getHotelDetails = async (hotelSummary: HotelSummary) => {
+        console.log(`getting hotel details for hotel ${hotelSummary.hotel_id}`);
+        try {
+            const response = await axios.post(
+                `http://localhost:8000/home/get_hotel_details?hotel_id=${hotelSummary.hotel_id}`,
+                {}
+            );
+            setHotelDetailsResults({details: response.data, summary: hotelSummary});
+        } catch (error) {
+            console.error("Error fetching hotel details data:", error);
+        }
+    };
+
     return (
-      <div className="bg-white p-2 border rounded shadow">
-        <p className="font-bold">{hotel.name}</p>
-        <p>Price: ${hotel.price}</p>
-        <p>Rating: {hotel.rating} stars</p>
-      </div>
+        <main className="container mx-auto px-4 py-8">
+            <h1 className="text-3xl font-bold text-center mb-8">Travel Search</h1>
+
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-2xl mx-auto">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="inspiration">Inspiration</TabsTrigger>
+                    <TabsTrigger value="specific">Specific Search</TabsTrigger>
+                    <TabsTrigger value="hotels">Hotel Search</TabsTrigger>
+                </TabsList>
+
+                {/* Inspiration Trip Form */}
+                <TabsContent value="inspiration">
+                    <form onSubmit={handleInspirationSubmit} className="space-y-4">
+                        <div>
+                            <Label htmlFor="inspiration-start">Start Location</Label>
+                            <Input
+                                id="inspiration-start"
+                                value={inspirationForm.start}
+                                onChange={(e) => setInspirationForm({ ...inspirationForm, start: e.target.value })}
+                                placeholder="Enter start location"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="inspiration-end">End Location</Label>
+                            <Input
+                                id="inspiration-end"
+                                value={inspirationForm.end}
+                                onChange={(e) => setInspirationForm({ ...inspirationForm, end: e.target.value })}
+                                placeholder="Enter end location"
+                                required
+                            />
+                        </div>
+                        <Button type="submit" className="w-full">Search for Inspiration</Button>
+                    </form>
+                    {inspirationResults && (
+                        <InspirationTripDisplay inspirationResults={inspirationResults} />
+                    )}
+                </TabsContent>
+
+                {/* Detailed Trip Form */}
+                <TabsContent value="specific">
+                    <form onSubmit={handleSpecificSubmit} className="space-y-4">
+                        <div>
+                            <Label htmlFor="specific-start">Start Location</Label>
+                            <Input
+                                id="specific-start"
+                                value={specificForm.start}
+                                onChange={(e) => setSpecificForm({ ...specificForm, start: e.target.value })}
+                                placeholder="Enter start location"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="specific-end">End Location</Label>
+                            <Input
+                                id="specific-end"
+                                value={specificForm.end}
+                                onChange={(e) => setSpecificForm({ ...specificForm, end: e.target.value })}
+                                placeholder="Enter end location"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="start-date">Start Date</Label>
+                            <Input
+                                id="start-date"
+                                type="text"
+                                value={specificForm.startDate}
+                                onChange={(e) => setSpecificForm({ ...specificForm, startDate: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="end-date">End Date</Label>
+                            <Input
+                                id="end-date"
+                                type="text"
+                                value={specificForm.endDate}
+                                onChange={(e) => setSpecificForm({ ...specificForm, endDate: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <Button type="submit" className="w-full">Search</Button>
+                    </form>
+                    {detailedTripResults && (
+                        <DetailedTripDisplay detailedTripResults={detailedTripResults} />
+                    )}
+                </TabsContent>
+
+                {/* Hotel Search Form */}
+                <TabsContent value="hotels">
+                    <form onSubmit={handleHotelDistricSubmit} className="space-y-4">
+                        <div>
+                            <Label htmlFor="hotel-city">City</Label>
+                            <Input
+                                id="hotel-city"
+                                value={hotelForm.city}
+                                onChange={(e) => setHotelForm({ ...hotelForm, city: e.target.value })}
+                                placeholder="Enter city"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="check-in-date">Check-in Date</Label>
+                            <Input
+                                id="check-in-date"
+                                value={hotelForm.checkInDate}
+                                onChange={(e) => setHotelForm({ ...hotelForm, checkInDate: e.target.value })}
+                                placeholder="Enter check in date"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="check-out-date">Check-out Date</Label>
+                            <Input
+                                id="check-out-date"
+                                value={hotelForm.checkOutDate}
+                                onChange={(e) => setHotelForm({ ...hotelForm, checkOutDate: e.target.value })}
+                                placeholder="Enter check out date"
+                                required
+                            />
+                        </div>
+                        <Button type="submit" className="w-full">Search Districts</Button>
+                    </form>
+                    {hotelDistrictResults && (
+                        <HotelDistrictDisplay
+                            hotelDistrictResults={hotelDistrictResults}
+                            onSelectDistrict={(districtId: number) => {
+                                console.log(`District ${districtId} selected!`)
+                                getHotelListFromDistrict(districtId, hotelForm.checkInDate, hotelForm.checkOutDate);
+                                setHotelDistrictResults(null);
+                            }}
+                        />
+                    )}
+                    {hotelSummaryResults && (
+                        <HotelSummaryDisplay
+                            hotelSummaryResults={hotelSummaryResults}
+                            onSelectHotelSummary={(hotelSummary: HotelSummary) => {
+                                console.log(`Hotel ${hotelSummary.hotel_id} selected!`)
+                                getHotelDetails(hotelSummary);
+                                setHotelSummaryResults(null);
+                            }}
+                        />
+                    )}
+                    {hotelDetailsResults && (
+                        <HotelDetailsDisplay
+                            hotel_name={hotelDetailsResults.summary.hotel_name}
+                            distance={hotelDetailsResults.summary.distance}
+                            hotel_price={hotelDetailsResults.summary.hotel_price}
+                            hotel_description={hotelDetailsResults.details.hotel_description}
+                            check_in_time={hotelDetailsResults.details.check_in_time}
+                            check_out_time={hotelDetailsResults.details.check_out_time}
+                            location={hotelDetailsResults.details.location}
+                            rating={hotelDetailsResults.details.rating}
+                        />
+                    )}
+                </TabsContent>
+            </Tabs>
+
+            <div className="fixed bottom-4 right-4 z-50">
+                {(detailedTripResults || inspirationResults) && (<ChatbotPopup />)}
+            </div>
+        </main>
     );
-  }
-  return null;
+}
+
+type InspirationProposal = {
+    price: number;
+    departure_date: string;
+    arrival_date: string;
 };
 
-export default function TripPlanner() {
-  const [priceRange, setPriceRange] = useState([0, 300])
-  const [qualityFilter, setQualityFilter] = useState("all")
+type InspirationBucket = {
+    label: string;
+    proposals: InspirationProposal[];
+};
 
-  const filteredHotels = hotelsData.filter(hotel => 
-    hotel.price >= priceRange[0] && 
-    hotel.price <= priceRange[1] && 
-    (qualityFilter === "all" || hotel.rating >= parseInt(qualityFilter))
-  )
+type InspirationTripResults = InspirationBucket[];
 
-  const chartConfig = {
-    price: {
-      label: "Price",
-      color: "hsl(var(--chart-1))",
-    },
-    rating: {
-      label: "Rating",
-      color: "hsl(var(--chart-2))",
-    },
-  }
 
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6">Trip Planner</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Price Range</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Slider
-              min={0}
-              max={300}
-              step={10}
-              value={priceRange}
-              onValueChange={setPriceRange}
-              className="mt-2"
-            />
-            <div className="flex justify-between mt-2">
-              <span>${priceRange[0]}</span>
-              <span>${priceRange[1]}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Hotel Quality</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Select value={qualityFilter} onValueChange={setQualityFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select quality" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="2">2 stars & up</SelectItem>
-                <SelectItem value="3">3 stars & up</SelectItem>
-                <SelectItem value="4">4 stars & up</SelectItem>
-                <SelectItem value="5">5 stars</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Hotels Found</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-4xl font-bold">{filteredHotels.length}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Hotel Price Chart</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid />
-                  <XAxis type="number" dataKey="rating" name="rating" unit=" stars" domain={[1, 5]} />
-                  <YAxis type="number" dataKey="price" name="price" unit="$" />
-                  <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />} />
-                  <Scatter name="Hotels" data={filteredHotels} fill="#8884d8" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Featured Hotel</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredHotels.length > 0 ? (
-              <div className="flex items-center space-x-4">
-                <img
-                  src={filteredHotels[0].image}
-                  alt={filteredHotels[0].name}
-                  className="w-24 h-24 object-cover rounded-md"
-                />
-                <div>
-                  <h3 className="text-lg font-semibold">{filteredHotels[0].name}</h3>
-                  <p className="text-sm text-gray-500">${filteredHotels[0].price} per night</p>
-                  <div className="flex items-center mt-1">
-                    {[...Array(filteredHotels[0].rating)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current text-yellow-400" />
-                    ))}
-                  </div>
+interface InspirationTripDisplayProps {
+    inspirationResults: InspirationTripResults | null
+}
+// Inspiration Trip Display Component
+function InspirationTripDisplay({ inspirationResults }: InspirationTripDisplayProps) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">Inspiration Trip Results</h2>
+            {inspirationResults && inspirationResults.map((bucket, index) => (
+                <div key={index} className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4 text-blue-600">{bucket.label}</h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {bucket.proposals.map((proposal, idx) => (
+                            <div key={idx} className="p-4 border rounded-lg shadow-sm hover:shadow-lg transition-shadow">
+                                <p className="text-lg font-semibold mb-2">Price: ${proposal.price}</p>
+                                <p className="mb-1"><strong>Departure Date:</strong> {new Date(proposal.departure_date).toLocaleDateString()}</p>
+                                <p><strong>Arrival Date:</strong> {new Date(proposal.arrival_date).toLocaleDateString()}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-              </div>
-            ) : (
-              <p>No hotels match your criteria.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            ))}
+        </div>
+    );
+}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredHotels.map(hotel => (
-          <Card key={hotel.id}>
-            <CardHeader>
-              <img src={hotel.image} alt={hotel.name} className="w-full h-48 object-cover rounded-t-lg" />
-            </CardHeader>
-            <CardContent>
-              <CardTitle>{hotel.name}</CardTitle>
-              <CardDescription>${hotel.price} per night</CardDescription>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <div className="flex items-center">
-                {[...Array(hotel.rating)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-current text-yellow-400" />
-                ))}
-              </div>
-              <span className="text-sm text-gray-500">{hotel.rating} stars</span>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
+type FlightSegment = {
+    airline: string;
+    departure_airport: string;
+    arrival_airport: string;
+    flight_time: number;
+    departure_time: string;
+    arrival_time: string;
+    flight_number: string;
+    stop_count: number;
+};
+
+type Itinerary = {
+    price: number;
+    legs: FlightSegment[];
+    score: number;
+};
+
+type DetailedTripResults = Itinerary[];
+
+interface DetailedTripDisplayProps {
+    detailedTripResults: DetailedTripResults | null;
+}
+
+// Detailed Trip Display Component
+function DetailedTripDisplay({ detailedTripResults }: DetailedTripDisplayProps) {
+
+    if (!detailedTripResults) {
+        return null;
+    }
+    const plotData = detailedTripResults.map((itinerary: any, index: number) => ({
+        x: itinerary.price,
+        y: itinerary.score,
+        z: index + 1,
+    }));
+    console.log(plotData);
+
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">Detailed Trip Results</h2>
+            {detailedTripResults && detailedTripResults.map((itinerary, index) => (
+                <div key={index} className="mb-8 p-4 border rounded-lg shadow-sm hover:shadow-lg transition-shadow">
+                    <h3 className="text-xl font-bold mb-4 text-green-600">Price: ${itinerary.price.toFixed(2)}</h3>
+                    {itinerary.legs.map((leg, idx) => (
+                        <div key={idx} className="mb-6 p-4 border rounded-md shadow-sm bg-gray-50">
+                            <h4 className="text-lg font-semibold mb-2">{leg.airline} - Flight {leg.flight_number}</h4>
+                            <div className="mb-2">
+                                <p className="font-medium">Departure Airport: <span className="font-normal">{leg.departure_airport}</span></p>
+                                <p className="font-medium">Arrival Airport: <span className="font-normal">{leg.arrival_airport}</span></p>
+                            </div>
+                            <div className="flex justify-between mb-2">
+                                <p className="font-medium">Departure Time: <span className="font-normal">{new Date(leg.departure_time).toLocaleString()}</span></p>
+                                <p className="font-medium">Arrival Time: <span className="font-normal">{new Date(leg.arrival_time).toLocaleString()}</span></p>
+                            </div>
+                            <p className="font-medium">Flight Duration: <span className="font-normal">{Math.floor(leg.flight_time / 60)}h {leg.flight_time % 60}m</span></p>
+                            <p className="font-medium">Number of Stops: <span className="font-normal">{leg.stop_count}</span></p>
+                        </div>
+                    ))}
+                    <p className="text-right text-sm text-gray-500">Score: {itinerary.score.toFixed(3)}</p>
+                </div>
+            ))}
+            {detailedTripResults && (
+            <>
+                <div className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4">Price to Score Comparison</h3>
+                    <ScatterPlot data={plotData} />
+                </div>
+            </>
+            )}
+        </div>
+    );
+}
+
+type HotelDistrict = {
+    district: string;
+    district_id: number;
+};
+
+interface HotelDistrictDisplayProps {
+    hotelDistrictResults: HotelDistrict[];
+    onSelectDistrict: (districtId: number) => void;
+}
+
+// Hotel Districts Display Component
+function HotelDistrictDisplay({ hotelDistrictResults, onSelectDistrict }: HotelDistrictDisplayProps) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">Available Districts</h2>
+            {hotelDistrictResults && hotelDistrictResults.map((district, index) => (
+                <div
+                    key={index}
+                    className="mb-8 p-4 border rounded-lg shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => onSelectDistrict(district.district_id)}
+                >
+                    <h3 className="text-xl font-semibold">{district.district}</h3>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+type HotelSummary = {
+    hotel_name: string;
+    hotel_id: string;
+    distance: string;
+    hotel_price: string;
+}
+
+interface HotelSummaryDisplayProps {
+    hotelSummaryResults: HotelSummary[];
+    onSelectHotelSummary: (hotelSummary: HotelSummary) => void;
+}
+
+// Hotel Summaries Display Component
+function HotelSummaryDisplay({ hotelSummaryResults, onSelectHotelSummary }: HotelSummaryDisplayProps) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">Available Hotels</h2>
+            {hotelSummaryResults && hotelSummaryResults.map((hotelSummary, index) => (
+                <div
+                    key={index}
+                    className="mb-8 p-4 border rounded-lg shadow-sm hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => onSelectHotelSummary(hotelSummary)}
+                >
+                    <h3 className="text-xl font-semibold">{hotelSummary.hotel_name}</h3>
+                    <div className="mb-2">
+                        <p className="font-medium">Price: <span className="font-normal">{hotelSummary.hotel_price}</span></p>
+                        <p className="font-medium">Distance: <span className="font-normal">{hotelSummary.distance}</span></p>
+                    </div>
+                </div>
+            ))}
+            {hotelSummaryResults && (
+                <div className="mb-8">
+                    <h3 className="text-2xl font-semibold mb-4">Price to Distance Comparison</h3>
+                    <HotelScatterPlot data={hotelSummaryResults.map((hotel, index) => ({
+                        x: parseFloat(hotel.hotel_price.replace('$', '')),
+                        y: parseFloat(hotel.distance),
+                        z: index + 1,
+                    }))} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+type HotelDetails = {
+    hotel_name: string;
+    distance: string;
+    hotel_price: string;
+    hotel_description: string;
+    check_in_time: string;
+    check_out_time: string;
+    location: string;
+    rating: number;
+}
+
+// Hotel Details Display Component
+function HotelDetailsDisplay(hotelDetails: HotelDetails) {
+    return (
+        <div className="container mx-auto py-8 px-4">
+            <h2 className="text-3xl font-bold text-center mb-6">{hotelDetails.hotel_name}</h2>
+            <div className="mb-2">
+                <p className="font-medium">Description: <span className="font-normal">{hotelDetails.hotel_description}</span></p>
+                <p className="font-medium">Price: <span className="font-normal">{hotelDetails.hotel_price}</span></p>
+                <p className="font-medium">Check-In Time: <span className="font-normal">{hotelDetails.check_in_time}</span></p>
+                <p className="font-medium">Check-Out Time: <span className="font-normal">{hotelDetails.check_out_time}</span></p>
+                <p className="font-medium">Location: <span className="font-normal">{hotelDetails.location}</span></p>
+                <p className="font-medium">Distance: <span className="font-normal">{hotelDetails.distance}</span></p>
+                <p className="font-medium">Rating: <span className="font-normal">{hotelDetails.rating}</span></p>
+            </div>
+        </div>
+    );
 }
