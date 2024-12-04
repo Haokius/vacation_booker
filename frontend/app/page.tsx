@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React from 'react';
+import { ChatbotPopup } from '@/components/ChatbotPopup';
 
 export default function Home() {
     const [activeTab, setActiveTab] = useState('inspiration');
@@ -135,6 +136,10 @@ export default function Home() {
                     )}
                 </TabsContent>
             </Tabs>
+
+            <div className="fixed bottom-4 right-4 z-50">
+                <ChatbotPopup />
+            </div>
         </main>
     );
 }
