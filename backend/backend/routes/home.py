@@ -62,6 +62,7 @@ async def get_inspiration(inspiration_trip: InspirationTrip) -> List[Inspiration
     destination = inspiration_trip.destination
 
     url = f"https://sky-scanner3.p.rapidapi.com/flights/search-roundtrip?fromEntityId={origin}&toEntityId={destination}"
+    
     r = requests.get(url, headers={
         "x-rapidapi-host": "sky-scanner3.p.rapidapi.com",
         "x-rapidapi-key": os.getenv("API_KEY1")
@@ -190,7 +191,7 @@ class HotelDetails(BaseModel):
     check_in_time: str
     check_out_time: str
     location: str
-    rating: int
+    rating: float
 
 @home_router.post("/get_hotel_district")
 async def get_hotel_district(hotel_district: HotelIds) -> List[HotelDistrict]:
