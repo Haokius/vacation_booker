@@ -33,7 +33,7 @@ export default function Home() {
     const handleSpecificSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await axios.post('/home/get_detailed_trip', {
+            const response = await axios.post('http://localhost:8000/home/get_detailed_trip', {
                 origin: specificForm.start,
                 destination: specificForm.end,
                 start_date: specificForm.startDate,
